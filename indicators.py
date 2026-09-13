@@ -77,26 +77,28 @@ def compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
         100 / (1 + rs)
     )
 
-    # If losses are zero and gains exist,
-    # RSI is 100.
+    # No losses but gains exist = RSI 100
     rsi = rsi.mask(
         (avg_loss == 0) & (avg_gain > 0),
         100.0,
     )
 
-    # If gains and losses are both zero,
-    # use neutral RSI.
+    # No gains and no losses = neutral RSI
     rsi = rsi.mask(
         (avg_gain == 0) & (avg_loss == 0),
         50.0,
     )
+
+    # Warm-up period: use neutral 50 rather than NaN.
+    # This keeps the indicator defined for every row.
+    rsi = rsi.fillna(50.0)
 
     data["RSI14"] = rsi.clip(
         lower=0,
         upper=100,
     )
 
-    # Compatibility name
+    # Compatibility
     data["RSI"] = data["RSI14"]
 
     # ========================================================
@@ -148,11 +150,10 @@ def compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
         min_periods=14,
     ).mean()
 
-    # Compatibility name
     data["ATR"] = data["ATR14"]
 
     # ========================================================
-    # Average volume
+    # Average Volume
     # ========================================================
 
     data["Volume_SMA20"] = volume.rolling(
@@ -168,7 +169,7 @@ def add_indicators(
 ) -> pd.DataFrame:
     """
     Compatibility wrapper used by scanner.py
-    and strategy tests.
+    and strategy.py.
     """
 
     return compute_all_indicators(df)

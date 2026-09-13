@@ -1,56 +1,110 @@
 from __future__ import annotations
-import sys, urllib.parse, urllib.request
+
+import sys
+import urllib.parse
+import urllib.request
+
 import config
+from news import get_news
 from scanner import scan_symbol
 from universe import all_symbols
-from news import get_news
 
-def send_telegram(message):
-    if not config.TELEGRAM_BOT_TOKEN or not config.TELEGRAM_CHAT_ID:
-        print(message); return False
-    data=urllib.parse.urlencode({"chat_id":config.TELEGRAM_CHAT_ID,"text":message}).encode()
-    url=f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage"
+
+def send_telegram(message: str) -> bool:
+    """
+    Send a message to Telegram.
+
+    Returns True when Telegram accepts the request.
+    Returns False when Telegram is not configured or
+    the request fails.
+    """
+
+    token = config.TELEGRAM_BOT_TOKEN
+    chat_id = config.TELEGRAM_CHAT_ID
+
+    if not token or not chat_id:
+        print(message)
+        return False
+
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{token}/sendMessage"
+    )
+
+    data = urllib.parse.urlencode(
+        {
+            "chat_id": chat_id,
+            "text": message,
+        }
+    ).encode("utf-8")
+
     try:
-        urllib.request.urlopen(urllib.request.Request(url,data=data),timeout=15).read()
+        request = urllib.request.Request(
+            url,
+            data=data,
+            method="POST",
+        )
+
+        with urllib.request.urlopen(
+            request,
+            timeout=config.REQUEST_TIMEOUT_SECONDS,
+        ) as response:
+            response.read()
+
         return True
-    except Exception as e:
-        print("Telegram error:",e); return False
 
-def format_signal(s):
-    return (f"📈 {s.symbol} BUY\nScore {s.score:.0f}/5 | Confidence {s.confidence:.0f}%\n"
-            f"Price {s.price:.2f}\nStop {s.stop:.2f}\nTarget {s.target:.2f}\n"
-            f"Reasons: {', '.join(s.reasons)}")
+    except Exception as exc:
+        print(
+            f"[TELEGRAM ERROR] {exc}"
+        )
+        return False
 
-def ask(symbol):
-    s=scan_symbol(symbol.upper())
-    return format_signal(s) if s else f"WAIT — no qualifying BUY signal for {symbol.upper()}."
 
-def scan():
-    hits=[]
-    for symbol in all_symbols():
-        s=scan_symbol(symbol)
-        if s: hits.append(format_signal(s))
-    message="\n\n".join(hits) if hits else "🔎 Scan complete: no qualifying signals."
-    send_telegram(message)
-    return hits
+def format_signal(signal) -> str:
+    """
+    Format a trading-analysis signal for Telegram.
+    """
 
-def news(symbol):
-    items=get_news(symbol.upper())
-    message="\n".join("📰 "+x["title"] for x in items) or "No news found."
-    send_telegram(message); return message
+    reasons = ", ".join(
+        signal.reasons
+    )
 
-def main():
-    args=[a for a in sys.argv[1:]]
-    if not args: scan(); return
-    cmd=args[0].lower()
-    if cmd=="scan": scan()
-    elif cmd=="ask" and len(args)>=2 and args[1].lower()=="news":
-        news(args[2] if len(args)>2 else "NVDA")
-    elif cmd=="ask" and len(args)>=2:
-        msg=ask(args[1]); send_telegram(msg); print(msg)
-    elif cmd=="news":
-        news(args[1] if len(args)>1 else "NVDA")
-    else:
-        print("Usage: python bot.py [scan|news SYMBOL|ask SYMBOL|ask news SYMBOL]")
+    return (
+        "📈 SHtrading SIGNAL\n\n"
+        f"Symbol: {signal.symbol}\n"
+        f"Action: {signal.action}\n"
+        f"Score: {signal.score:.0f}/5\n"
+        f"Confidence: "
+        f"{signal.confidence:.0f}%\n\n"
+        f"Price: {signal.price:.2f}\n"
+        f"Stop: {signal.stop:.2f}\n"
+        f"Target: {signal.target:.2f}\n\n"
+        f"Reasons: {reasons}\n\n"
+        "ℹ️ Analysis/data alert only.\n"
+        "No automatic trading."
+    )
 
-if __name__=="__main__": main()
+
+def ask(symbol: str) -> str:
+    """
+    Analyse one symbol.
+
+    This function is retained for compatibility,
+    although the background-monitor requirement
+    does not depend on Telegram ASK.
+    """
+
+    symbol = (
+        str(symbol)
+        .strip()
+        .upper()
+    )
+
+    if not symbol:
+        return "Please provide a symbol."
+
+    signal = scan_symbol(symbol)
+
+    if signal is None:
+        return (
+            f"

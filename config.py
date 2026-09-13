@@ -7,6 +7,7 @@ import os
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
+
 # ============================================================
 # ACCOUNT / RISK
 # ============================================================
@@ -20,6 +21,7 @@ MAX_PORTFOLIO_EXPOSURE_PCT = float(
 )
 MAX_DAILY_LOSS_PCT = float(os.getenv("MAX_DAILY_LOSS_PCT", "3"))
 
+
 # ============================================================
 # MARKET DATA
 # ============================================================
@@ -27,12 +29,14 @@ MAX_DAILY_LOSS_PCT = float(os.getenv("MAX_DAILY_LOSS_PCT", "3"))
 DAILY_PERIOD = os.getenv("DAILY_PERIOD", "1y")
 INTRADAY_PERIOD = os.getenv("INTRADAY_PERIOD", "60d")
 
+
 # ============================================================
 # TIMEFRAMES
 # ============================================================
 
 INTRADAY_TIMEFRAMES = ["1h"]
 SWING_TIMEFRAME = "1d"
+
 
 # ============================================================
 # WATCHLIST
@@ -51,9 +55,10 @@ WATCHLIST = [
     "SAP.DE",
     "SIE.DE",
     "ALV.DE",
-    "DAX",
+    "^GDAXI",
     "^N225",
 ]
+
 
 # ============================================================
 # TECHNICAL INDICATORS
@@ -75,13 +80,19 @@ BB_PERIOD = int(os.getenv("BB_PERIOD", "20"))
 BB_STD = float(os.getenv("BB_STD", "2"))
 
 ATR_PERIOD = int(os.getenv("ATR_PERIOD", "14"))
-VOLUME_LOOKBACK = int(os.getenv("VOLUME_LOOKBACK", "20"))
+
+VOLUME_LOOKBACK = int(
+    os.getenv("VOLUME_LOOKBACK", "20")
+)
+
 
 # ============================================================
 # STRATEGY
 # ============================================================
 
-MIN_SIGNAL_SCORE = int(os.getenv("MIN_SIGNAL_SCORE", "4"))
+MIN_SIGNAL_SCORE = int(
+    os.getenv("MIN_SIGNAL_SCORE", "4")
+)
 
 VOLUME_SPIKE_MULTIPLIER = float(
     os.getenv("VOLUME_SPIKE_MULTIPLIER", "1.5")
@@ -99,84 +110,6 @@ REWARD_RISK_RATIO = float(
     os.getenv("REWARD_RISK_RATIO", "2.0")
 )
 
-# ============================================================
-# ALERTS / NEWS
-# ============================================================
-
-MAX_ALERTS = int(os.getenv("MAX_ALERTS", "10"))
-NEWS_RESULTS = int(os.getenv("NEWS_RESULTS", "5"))
-NEWS_PER_TICKER = int(os.getenv("NEWS_PER_TICKER", "2"))
 
 # ============================================================
-# BACKTESTING
-# ============================================================
-
-TRANSACTION_COST_PCT = float(
-    os.getenv("TRANSACTION_COST_PCT", "0.10")
-)
-
-# ============================================================
-# GENERAL
-# ============================================================
-
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-
-REQUEST_TIMEOUT = int(
-    os.getenv("REQUEST_TIMEOUT", "30")
-)
-
-
-# ============================================================
-# MARKET DATA
-# ============================================================
-
-DAILY_PERIOD = os.getenv("DAILY_PERIOD", "1y")
-INTRADAY_PERIOD = os.getenv("INTRADAY_PERIOD", "60d")
-
-
-# ============================================================
-# TIMEFRAMES
-# ============================================================
-
-INTRADAY_TIMEFRAMES = [
-    "1h",
-]
-
-SWING_TIMEFRAME = "1d"
-
-
-# ============================================================
-# WATCHLIST
-# ============================================================
-
-WATCHLIST = [
-    "NVDA",
-    "AAPL",
-    "MSFT",
-    "AMZN",
-    "META",
-    "GOOGL",
-    "TSLA",
-
-    "SPY",
-    "QQQ",
-
-    "SAP.DE",
-    "SIE.DE",
-    "ALV.DE",
-
-    "DAX",
-
-    "^N225",
-]
-
-
-# ============================================================
-# TECHNICAL INDICATORS
-# ============================================================
-
-SMA_FAST = int(os.getenv("SMA_FAST", "20"))
-SMA_SLOW = int(os.getenv("SMA_SLOW", "50"))
-
-EMA_FAST = int(os.getenv("EMA_FAST", "12"))
-EMA_S
+# ALERT

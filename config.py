@@ -30,6 +30,61 @@ MAX_DAILY_LOSS_PCT = float(
 
 
 # ============================================================
+# MARKET DATA
+# ============================================================
+
+DAILY_PERIOD = os.getenv(
+    "DAILY_PERIOD",
+    "1y"
+)
+
+INTRADAY_PERIOD = os.getenv(
+    "INTRADAY_PERIOD",
+    "60d"
+)
+
+
+# ============================================================
+# TIMEFRAMES
+# ============================================================
+
+INTRADAY_TIMEFRAMES = [
+    "1h",
+]
+
+SWING_TIMEFRAME = "1d"
+
+
+# ============================================================
+# WATCHLIST
+# ============================================================
+
+WATCHLIST = [
+    # United States
+    "NVDA",
+    "AAPL",
+    "MSFT",
+    "AMZN",
+    "META",
+    "GOOGL",
+    "TSLA",
+
+    # Major US indices / ETFs
+    "SPY",
+    "QQQ",
+
+    # Germany / Europe
+    "SAP.DE",
+    "SIE.DE",
+    "ALV.DE",
+    "DAX",
+
+    # Japan
+    "^N225",
+]
+
+
+# ============================================================
 # TECHNICAL INDICATORS
 # ============================================================
 
@@ -79,4 +134,29 @@ ATR_PERIOD = int(
 
 VOLUME_LOOKBACK = int(
     os.getenv("VOLUME_LOOKBACK", "20")
+)
+
+
+# ============================================================
+# STRATEGY
+# ============================================================
+
+MIN_SIGNAL_SCORE = int(
+    os.getenv("MIN_SIGNAL_SCORE", "4")
+)
+
+VOLUME_SPIKE_MULTIPLIER = float(
+    os.getenv("VOLUME_SPIKE_MULTIPLIER", "1.5")
+)
+
+ATR_STOP_MULTIPLIER = float(
+    os.getenv("ATR_STOP_MULTIPLIER", "1.5")
+)
+
+MIN_STOP_PCT = float(
+    os.getenv("MIN_STOP_PCT", "0.01")
+)
+
+REWARD_RISK_RATIO = float(
+    os.getenv("REWARD_RISK_RATIO", "2.0")
 )

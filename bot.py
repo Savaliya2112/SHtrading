@@ -1,13 +1,8 @@
 """
-SHtrading scanner bot.
+SHtrading Telegram scanner.
 
-Modes:
-
-    python bot.py scan
-
-    python bot.py daily
-
-The bot sends alerts through Telegram.
+Scans the configured watchlist, ranks qualifying technical
+signals, and sends one consolidated report.
 
 It does NOT place live trades.
 """
@@ -19,33 +14,20 @@ import requests
 
 import config as cfg
 
-from data_provider import get_ohlcv
-
-from risk import build_risk_plan
-
-from strategy import generate_signal
-
 from news import search_news
+from scanner import scan_all_markets
 
 
-def send_telegram_message(
-    message,
-):
-    """
-    Send message to Telegram.
-    """
+def send_telegram_message(message):
+    """Send a message through Telegram."""
 
     if not cfg.TELEGRAM_BOT_TOKEN:
-        print(
-            "Telegram token not configured."
-        )
-        return
+        print("Telegram token not configured.")
+        return False
 
     if not cfg.TELEGRAM_CHAT_ID:
-        print(
-            "Telegram chat ID not configured."
-        )
-        return
+        print("Telegram chat ID not configured.")
+        return False
 
     url = (
         "https://api.telegram.org/bot"
@@ -53,177 +35,105 @@ def send_telegram_message(
         + "/sendMessage"
     )
 
-    payload = {
-        "chat_id":
-            cfg.TELEGRAM_CHAT_ID,
-
-        "text":
-            message,
-
-        "disable_web_page_preview":
-            True,
-    }
-
     response = requests.post(
         url,
-        data=payload,
+        data={
+            "chat_id": cfg.TELEGRAM_CHAT_ID,
+            "text": message,
+            "disable_web_page_preview": True,
+        },
         timeout=15,
     )
 
     if response.status_code != 200:
-
         print(
             "Telegram error:",
             response.status_code,
             response.text,
         )
+        return False
+
+    return True
 
 
-def format_signal_message(
-    signal,
-):
-    message = (
-        f"🚨 {signal.direction} SIGNAL\n\n"
+def format_market_report(signals):
+    """Format ranked scanner results for Telegram."""
 
-        f"Ticker: {signal.ticker}\n"
-
-        f"Timeframe: {signal.timeframe}\n"
-
-        f"Price: {signal.close:.2f}\n"
-
-        f"Score: "
-        f"{signal.score}/"
-        f"{signal.max_score}\n\n"
-
-        f"Stop Loss: "
-        f"{signal.stop_loss:.2f}\n"
-
-        f"Take Profit: "
-        f"{signal.take_profit:.2f}\n\n"
-
-        "Reasons:\n"
-    )
-
-    for reason in signal.reasons:
-
-        message += (
-            f"• {reason}\n"
+    if not signals:
+        return (
+            "🤖 SHtrading MARKET SCAN\n\n"
+            "No qualifying setups found.\n\n"
+            "⚠️ Research/paper signal only."
         )
 
-    plan = build_risk_plan(
-        signal.close,
-        signal.stop_loss,
-        cfg.ACCOUNT_BALANCE_EUR,
-        cfg.RISK_PER_TRADE_PCT,
-        cfg.MAX_POSITION_PCT,
-    )
+    lines = [
+        "🤖 SHtrading MARKET SCAN",
+        "",
+    ]
 
-    message += (
-        "\nRisk plan:\n"
-        f"Quantity: {plan.quantity}\n"
-        f"Risk: €{plan.risk_eur:.2f}\n"
-        f"Notional: €{plan.notional_eur:.2f}\n"
-    )
+    for number, signal in enumerate(
+        signals[:cfg.MAX_ALERTS],
+        start=1,
+    ):
+        lines.extend(
+            [
+                f"{number}. {signal.ticker} — "
+                f"{signal.direction}",
+                f"Timeframe: {signal.timeframe}",
+                f"Score: {signal.score}/{signal.max_score}",
+                f"Price: {signal.close:.2f}",
+                f"Stop: {signal.stop_loss:.2f}",
+                f"Target: {signal.take_profit:.2f}",
+                "Reasons: "
+                + "; ".join(signal.reasons),
+                "",
+            ]
+        )
 
-    message += (
-        "\n⚠️ Paper/research signal only. "
+    lines.append(
+        "⚠️ Research/paper signal only. "
         "No live order was placed."
     )
 
-    return message
-
-
-def scan_ticker(
-    ticker,
-    timeframe,
-):
-    """
-    Scan one ticker.
-    """
-
-    if timeframe == "1d":
-
-        period = cfg.DAILY_PERIOD
-
-    else:
-
-        period = cfg.INTRADAY_PERIOD
-
-    df = get_ohlcv(
-        ticker,
-        period=period,
-        interval=timeframe,
-    )
-
-    return generate_signal(
-        ticker,
-        timeframe,
-        df,
-        cfg,
-    )
+    return "\n".join(lines)
 
 
 def run_scan():
+    """Run the ranked market scanner."""
 
     print(
         f"Scanning {len(cfg.WATCHLIST)} markets..."
     )
 
-    alerts = 0
+    signals = scan_all_markets()
 
-    for ticker in cfg.WATCHLIST:
+    message = format_market_report(
+        signals
+    )
 
-        for timeframe in (
-            cfg.INTRADAY_TIMEFRAMES
-            + [cfg.SWING_TIMEFRAME]
-        ):
+    print(message)
 
-            try:
-
-                signal = scan_ticker(
-                    ticker,
-                    timeframe,
-                )
-
-                if signal:
-
-                    message = (
-                        format_signal_message(
-                            signal
-                        )
-                    )
-
-                    send_telegram_message(
-                        message
-                    )
-
-                    print(
-                        message
-                    )
-
-                    alerts += 1
-
-            except Exception:
-
-                print(
-                    f"Failed: "
-                    f"{ticker} "
-                    f"{timeframe}"
-                )
-
-                traceback.print_exc()
+    send_telegram_message(
+        message
+    )
 
     print(
         f"Scan completed. "
-        f"Signals: {alerts}"
+        f"Qualified signals: {len(signals)}"
     )
 
 
 def run_news_scan():
+    """Send a consolidated recent-news report."""
 
-    print(
-        "News scan"
-    )
+    print("News scan")
+
+    lines = [
+        "📰 SHtrading NEWS",
+        "",
+    ]
+
+    found = 0
 
     for ticker in cfg.WATCHLIST:
 
@@ -234,23 +144,20 @@ def run_news_scan():
                 cfg.NEWS_RESULTS,
             )
 
-            if not items:
-                continue
+            for item in items[
+                :cfg.NEWS_PER_TICKER
+            ]:
 
-            message = (
-                f"📰 NEWS: {ticker}\n\n"
-            )
-
-            for item in items[:5]:
-
-                message += (
-                    f"• {item.title}\n"
-                    f"{item.source}\n\n"
+                lines.extend(
+                    [
+                        f"{ticker}: "
+                        f"{item.title}",
+                        f"{item.source}",
+                        "",
+                    ]
                 )
 
-            send_telegram_message(
-                message
-            )
+                found += 1
 
         except Exception as exc:
 
@@ -258,6 +165,21 @@ def run_news_scan():
                 f"News failed "
                 f"{ticker}: {exc}"
             )
+
+    if found == 0:
+
+        lines.append(
+            "No news items found."
+        )
+
+    lines.append(
+        "⚠️ News is contextual information, "
+        "not a guaranteed trading signal."
+    )
+
+    send_telegram_message(
+        "\n".join(lines)
+    )
 
 
 if __name__ == "__main__":
@@ -268,10 +190,18 @@ if __name__ == "__main__":
         else "scan"
     )
 
-    if mode == "news":
+    try:
 
-        run_news_scan()
+        if mode == "news":
 
-    else:
+            run_news_scan()
 
-        run_scan()
+        else:
+
+            run_scan()
+
+    except Exception:
+
+        traceback.print_exc()
+
+        raise

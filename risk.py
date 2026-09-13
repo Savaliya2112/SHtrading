@@ -1,11 +1,5 @@
-"""
-Risk management module.
-
-This module calculates position size.
-It does NOT place trades.
-"""
-
 from dataclasses import dataclass
+import math
 
 
 @dataclass
@@ -23,95 +17,84 @@ def build_risk_plan(
     stop,
     account_eur,
     risk_pct,
-    max_notional_pct=25.0,
+    max_position_pct,
 ):
-    """
-    Calculate a safe position size using:
+    entry = float(entry)
+    stop = float(stop)
+    account_eur = float(account_eur)
+    risk_pct = float(risk_pct)
+    max_position_pct = float(max_position_pct)
 
-    1. Maximum account risk.
-    2. Maximum position notional.
-
-    Example:
-        Account = €3,000
-        Risk = 1%
-        Maximum risk = €30
-    """
-
-    # Basic validation
-    if entry <= 0:
-        return RiskPlan(0, 0, 0, 0, entry, stop)
-
-    if account_eur <= 0:
-        return RiskPlan(0, 0, 0, 0, entry, stop)
-
-    if risk_pct <= 0:
-        return RiskPlan(0, 0, 0, 0, entry, stop)
-
-    if max_notional_pct <= 0:
-        return RiskPlan(0, 0, 0, 0, entry, stop)
-
-    # Stop must be different from entry
     risk_per_share = abs(entry - stop)
 
-    if risk_per_share <= 0:
-        return RiskPlan(0, 0, 0, 0, entry, stop)
+    # Invalid inputs
+    if entry <= 0:
+        return RiskPlan(
+            0, 0.0, 0.0, risk_per_share, entry, stop
+        )
 
-    # Maximum money we are allowed to lose
+    if stop <= 0:
+        return RiskPlan(
+            0, 0.0, 0.0, risk_per_share, entry, stop
+        )
+
+    if account_eur <= 0:
+        return RiskPlan(
+            0, 0.0, 0.0, risk_per_share, entry, stop
+        )
+
+    if risk_pct <= 0:
+        return RiskPlan(
+            0, 0.0, 0.0, risk_per_share, entry, stop
+        )
+
+    if max_position_pct <= 0:
+        return RiskPlan(
+            0, 0.0, 0.0, risk_per_share, entry, stop
+        )
+
+    if risk_per_share <= 0:
+        return RiskPlan(
+            0, 0.0, 0.0, 0.0, entry, stop
+        )
+
+    # Maximum amount we are allowed to lose
     risk_budget = (
-        account_eur
-        * risk_pct
-        / 100
+        account_eur * risk_pct / 100.0
     )
 
     # Maximum position value
     max_notional = (
-        account_eur
-        * max_notional_pct
-        / 100
+        account_eur * max_position_pct / 100.0
     )
 
     # Position size based on risk
-    quantity_by_risk = int(
+    quantity_by_risk = math.floor(
         risk_budget / risk_per_share
     )
 
-    # Position size based on maximum exposure
-    quantity_by_notional = int(
+    # Position size based on maximum position value
+    quantity_by_notional = math.floor(
         max_notional / entry
     )
 
-    # Use the smaller limit
-    quantity = min(
-        quantity_by_risk,
-        quantity_by_notional,
+    # Use the more conservative limit
+    quantity = max(
+        0,
+        min(
+            quantity_by_risk,
+            quantity_by_notional,
+        ),
     )
 
-    quantity = max(quantity, 0)
-
-    risk_eur = (
-        quantity
-        * risk_per_share
-    )
-
-    notional_eur = (
-        quantity
-        * entry
-    )
+    risk_eur = quantity * risk_per_share
+    notional_eur = quantity * entry
 
     return RiskPlan(
         quantity=quantity,
         risk_eur=round(risk_eur, 2),
         notional_eur=round(notional_eur, 2),
-        risk_per_share=round(
-            risk_per_share,
-            4,
-        ),
-        entry_price=round(
-            entry,
-            4,
-        ),
-        stop_price=round(
-            stop,
-            4,
-        ),
+        risk_per_share=round(risk_per_share, 4),
+        entry_price=round(entry, 4),
+        stop_price=round(stop, 4),
     )

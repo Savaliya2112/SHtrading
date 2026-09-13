@@ -1,0 +1,5 @@
+pandas>=2.0,<3
+numpy>=1.24,<3
+yfinance>=0.2.40
+pytest>=8,<9
+lxml>=5

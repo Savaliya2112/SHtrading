@@ -1,10 +1,3 @@
-"""
-Technical indicators used by the SHtrading strategy.
-
-Pure pandas/numpy implementation.
-No TA-Lib dependency is required.
-"""
-
 import numpy as np
 import pandas as pd
 
@@ -14,7 +7,10 @@ def sma(series, period):
 
 
 def ema(series, period):
-    return series.ewm(span=period, adjust=False).mean()
+    return series.ewm(
+        span=period,
+        adjust=False
+    ).mean()
 
 
 def rsi(series, period=14):
@@ -23,123 +19,199 @@ def rsi(series, period=14):
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
 
-    avg_gain = gain.rolling(period).mean()
-    avg_loss = loss.rolling(period).mean()
+    avg_gain = gain.rolling(
+        window=period
+    ).mean()
 
-    rs = avg_gain / avg_loss.replace(0, np.nan)
+    avg_loss = loss.rolling(
+        window=period
+    ).mean()
 
-    result = 100 - (100 / (1 + rs))
+    rs = avg_gain / avg_loss.replace(
+        0,
+        np.nan
+    )
+
+    result = 100 - (
+        100 / (1 + rs)
+    )
 
     return result.fillna(50)
 
 
-def macd(series, fast=12, slow=26, signal=9):
-    fast_ema = ema(series, fast)
-    slow_ema = ema(series, slow)
+def macd(
+    series,
+    fast=12,
+    slow=26,
+    signal=9
+):
+    fast_ema = ema(
+        series,
+        fast
+    )
 
-    macd_line = fast_ema - slow_ema
-    signal_line = ema(macd_line, signal)
+    slow_ema = ema(
+        series,
+        slow
+    )
 
-    histogram = macd_line - signal_line
+    macd_line = (
+        fast_ema - slow_ema
+    )
 
-    return macd_line, signal_line, histogram
+    signal_line = ema(
+        macd_line,
+        signal
+    )
+
+    histogram = (
+        macd_line - signal_line
+    )
+
+    return (
+        macd_line,
+        signal_line,
+        histogram
+    )
 
 
-def bollinger_bands(series, period=20, num_std=2):
-    middle = sma(series, period)
+def bollinger_bands(
+    series,
+    period=20,
+    num_std=2
+):
+    middle = sma(
+        series,
+        period
+    )
 
-    std = series.rolling(period).std()
+    standard_deviation = (
+        series
+        .rolling(window=period)
+        .std()
+    )
 
-    upper = middle + num_std * std
-    lower = middle - num_std * std
+    upper = (
+        middle
+        + num_std * standard_deviation
+    )
 
-    return upper, middle, lower
+    lower = (
+        middle
+        - num_std * standard_deviation
+    )
+
+    return (
+        upper,
+        middle,
+        lower
+    )
 
 
 def atr(df, period=14):
-    previous_close = df["Close"].shift(1)
-
-    tr1 = df["High"] - df["Low"]
-
-    tr2 = (df["High"] - previous_close).abs()
-
-    tr3 = (df["Low"] - previous_close).abs()
+    previous_close = (
+        df["Close"].shift(1)
+    )
 
     true_range = pd.concat(
-        [tr1, tr2, tr3],
+        [
+            df["High"] - df["Low"],
+            (
+                df["High"]
+                - previous_close
+            ).abs(),
+            (
+                df["Low"]
+                - previous_close
+            ).abs(),
+        ],
         axis=1
     ).max(axis=1)
 
-    return true_range.rolling(period).mean()
+    return true_range.rolling(
+        window=period
+    ).mean()
 
 
-def volume_ratio(volume, lookback=20):
-    average_volume = volume.rolling(lookback).mean()
+def volume_ratio(
+    volume,
+    lookback=20
+):
+    average_volume = (
+        volume
+        .rolling(window=lookback)
+        .mean()
+    )
 
-    return volume / average_volume.replace(0, np.nan)
+    return (
+        volume
+        / average_volume.replace(
+            0,
+            np.nan
+        )
+    )
 
 
-def compute_all_indicators(df, cfg):
-    """
-    Add all strategy indicators to OHLCV dataframe.
-    """
+def compute_all_indicators(
+    df,
+    cfg
+):
+    result = df.copy()
 
-    out = df.copy()
-
-    out["sma_fast"] = sma(
-        out["Close"],
+    result["sma_fast"] = sma(
+        result["Close"],
         cfg.SMA_FAST
     )
 
-    out["sma_slow"] = sma(
-        out["Close"],
+    result["sma_slow"] = sma(
+        result["Close"],
         cfg.SMA_SLOW
     )
 
-    out["ema_fast"] = ema(
-        out["Close"],
+    result["ema_fast"] = ema(
+        result["Close"],
         cfg.EMA_FAST
     )
 
-    out["ema_slow"] = ema(
-        out["Close"],
+    result["ema_slow"] = ema(
+        result["Close"],
         cfg.EMA_SLOW
     )
 
-    out["rsi"] = rsi(
-        out["Close"],
+    result["rsi"] = rsi(
+        result["Close"],
         cfg.RSI_PERIOD
     )
 
     (
-        out["macd"],
-        out["macd_signal"],
-        out["macd_hist"],
+        result["macd"],
+        result["macd_signal"],
+        result["macd_hist"],
     ) = macd(
-        out["Close"],
+        result["Close"],
         cfg.MACD_FAST,
         cfg.MACD_SLOW,
-        cfg.MACD_SIGNAL,
+        cfg.MACD_SIGNAL
     )
 
     (
-        out["bb_upper"],
-        out["bb_mid"],
-        out["bb_lower"],
+        result["bb_upper"],
+        result["bb_mid"],
+        result["bb_lower"],
     ) = bollinger_bands(
-        out["Close"],
+        result["Close"],
         cfg.BB_PERIOD,
-        cfg.BB_STD,
+        cfg.BB_STD
     )
 
-    out["atr"] = atr(
-        out,
+    result["atr"] = atr(
+        result,
         cfg.ATR_PERIOD
     )
 
-    out["vol_ratio"] = volume_ratio(
-        out["Volume"],
+    result["vol_ratio"] = volume_ratio(
+        result["Volume"],
         cfg.VOLUME_LOOKBACK
     )
 
-    return out
+    return result

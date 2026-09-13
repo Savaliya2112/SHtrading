@@ -1,3 +1,6 @@
+from risk import build_risk_plan
+
+
 def test_invalid_account_returns_zero_quantity():
     plan = build_risk_plan(
         entry=100,

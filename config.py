@@ -75,6 +75,7 @@ WATCHLIST = [
     "SAP.DE",
     "SIE.DE",
     "ALV.DE",
+
     "DAX",
 
     "^N225",
@@ -89,69 +90,4 @@ SMA_FAST = int(os.getenv("SMA_FAST", "20"))
 SMA_SLOW = int(os.getenv("SMA_SLOW", "50"))
 
 EMA_FAST = int(os.getenv("EMA_FAST", "12"))
-EMA_SLOW = int(os.getenv("EMA_SLOW", "26"))
-
-RSI_PERIOD = int(os.getenv("RSI_PERIOD", "14"))
-
-MACD_FAST = int(os.getenv("MACD_FAST", "12"))
-MACD_SLOW = int(os.getenv("MACD_SLOW", "26"))
-MACD_SIGNAL = int(os.getenv("MACD_SIGNAL", "9"))
-
-BB_PERIOD = int(os.getenv("BB_PERIOD", "20"))
-BB_STD = float(os.getenv("BB_STD", "2"))
-
-ATR_PERIOD = int(os.getenv("ATR_PERIOD", "14"))
-
-VOLUME_LOOKBACK = int(
-    os.getenv("VOLUME_LOOKBACK", "20")
-)
-
-
-# ============================================================
-# STRATEGY
-# ============================================================
-
-MIN_SIGNAL_SCORE = int(
-    os.getenv("MIN_SIGNAL_SCORE", "4")
-)
-
-VOLUME_SPIKE_MULTIPLIER = float(
-    os.getenv("VOLUME_SPIKE_MULTIPLIER", "1.5")
-)
-
-ATR_STOP_MULTIPLIER = float(
-    os.getenv("ATR_STOP_MULTIPLIER", "1.5")
-)
-
-MIN_STOP_PCT = float(
-    os.getenv("MIN_STOP_PCT", "0.01")
-)
-
-REWARD_RISK_RATIO = float(
-    os.getenv("REWARD_RISK_RATIO", "2.0")
-)
-
-
-# ============================================================
-# ALERTS / NEWS
-# ============================================================
-
-MAX_ALERTS = int(
-    os.getenv("MAX_ALERTS", "10")
-)
-
-NEWS_RESULTS = int(
-    os.getenv("NEWS_RESULTS", "5")
-)
-
-NEWS_PER_TICKER = int(
-    os.getenv("NEWS_PER_TICKER", "2")
-)
-
-
-# ============================================================
-# BACKTESTING
-# ============================================================
-
-TRANSACTION_COST_PCT = float(
-    os.getenv
+EMA_S

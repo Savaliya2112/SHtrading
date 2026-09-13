@@ -13,21 +13,10 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 # ACCOUNT / RISK
 # ============================================================
 
-ACCOUNT_BALANCE_EUR = float(
-    os.getenv("ACCOUNT_BALANCE_EUR", "3000")
-)
-
-RISK_PER_TRADE_PCT = float(
-    os.getenv("RISK_PER_TRADE_PCT", "1.0")
-)
-
-MAX_POSITION_PCT = float(
-    os.getenv("MAX_POSITION_PCT", "25")
-)
-
-MAX_OPEN_POSITIONS = int(
-    os.getenv("MAX_OPEN_POSITIONS", "5")
-)
+ACCOUNT_BALANCE_EUR = float(os.getenv("ACCOUNT_BALANCE_EUR", "3000"))
+RISK_PER_TRADE_PCT = float(os.getenv("RISK_PER_TRADE_PCT", "1.0"))
+MAX_POSITION_PCT = float(os.getenv("MAX_POSITION_PCT", "25"))
+MAX_OPEN_POSITIONS = int(os.getenv("MAX_OPEN_POSITIONS", "5"))
 
 
 # ============================================================
@@ -55,7 +44,6 @@ ATR_PERIOD = 14
 ATR_STOP_MULTIPLIER = 1.5
 
 REWARD_RISK_RATIO = 2.0
-
 MIN_STOP_PCT = 0.005
 
 VOLUME_LOOKBACK = 20
@@ -65,7 +53,7 @@ MIN_SIGNAL_SCORE = 4
 
 
 # ============================================================
-# TRANSACTION COST ASSUMPTION
+# TRANSACTION COST
 # ============================================================
 
 TRANSACTION_COST_PCT = 0.05
@@ -99,13 +87,17 @@ EUROPE_STOCKS = [
     "ASML.AS",
 ]
 
-# Japan: indexes only, as requested
+# Japan = indexes only
 JAPAN_INDEXES = [
     "^N225",
     "^TOPX",
 ]
 
-WATCHLIST = US_STOCKS + EUROPE_STOCKS + JAPAN_INDEXES
+WATCHLIST = (
+    US_STOCKS
+    + EUROPE_STOCKS
+    + JAPAN_INDEXES
+)
 
 
 # ============================================================
@@ -113,7 +105,6 @@ WATCHLIST = US_STOCKS + EUROPE_STOCKS + JAPAN_INDEXES
 # ============================================================
 
 INTRADAY_TIMEFRAMES = [
-    "5m",
     "15m",
 ]
 
@@ -129,10 +120,18 @@ DAILY_PERIOD = "2y"
 
 
 # ============================================================
+# ALERTS
+# ============================================================
+
+MAX_ALERTS = 10
+
+
+# ============================================================
 # NEWS
 # ============================================================
 
 NEWS_RESULTS = 8
+NEWS_PER_TICKER = 2
 
 
 # ============================================================
@@ -140,6 +139,3 @@ NEWS_RESULTS = 8
 # ============================================================
 
 AI_ENABLED = False
-
-# We keep AI disabled initially.
-# Later we can connect an AI provider safely through GitHub Secrets.

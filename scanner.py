@@ -1,59 +1,148 @@
-import config as cfg
+import json
+import os
+from datetime import datetime, timezone
 
+import config as cfg
 from data_provider import get_ohlcv
 from strategy import generate_signal
 
 
-def _period_for_timeframe(timeframe):
-    if timeframe == "1d":
-        return cfg.DAILY_PERIOD
-
-    return cfg.INTRADAY_PERIOD
+STATE_FILE = "signal_state.json"
 
 
-def scan_market(ticker, timeframe):
-    """
-    Scan one ticker on one timeframe.
-
-    Returns:
-        Signal or None
-    """
-
-    period = _period_for_timeframe(
-        timeframe
-    )
+def _load_state():
+    if not os.path.exists(STATE_FILE):
+        return {}
 
     try:
+        with open(
+            STATE_FILE,
+            "r",
+            encoding="utf-8",
+        ) as file:
+            data = json.load(file)
+
+        return data if isinstance(data, dict) else {}
+
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_state(state):
+    temporary_file = (
+        f"{STATE_FILE}.tmp"
+    )
+
+    with open(
+        temporary_file,
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(
+            state,
+            file,
+            indent=2,
+        )
+
+    os.replace(
+        temporary_file,
+        STATE_FILE,
+    )
+
+
+def _candle_key(df):
+    """Return the timestamp of the latest candle."""
+
+    if df is None or df.empty:
+        return None
+
+    timestamp = df.index[-1]
+
+    try:
+        return timestamp.isoformat()
+    except AttributeError:
+        return str(timestamp)
+
+
+def scan_market(
+    ticker,
+    timeframe,
+):
+    """Scan one market."""
+
+    try:
+        if timeframe == "1d":
+            period = cfg.DAILY_PERIOD
+        else:
+            period = cfg.INTRADAY_PERIOD
+
         df = get_ohlcv(
             ticker=ticker,
             period=period,
             interval=timeframe,
         )
 
-        return generate_signal(
+        signal = generate_signal(
             ticker=ticker,
             timeframe=timeframe,
             df=df,
             cfg=cfg,
         )
 
-    except Exception as exc:
-        print(
-            f"ERROR | {ticker} | "
-            f"{timeframe} | {exc}"
-        )
+        return {
+            "ticker": ticker,
+            "timeframe": timeframe,
+            "signal": signal,
+            "candle": _candle_key(df),
+            "error": None,
+        }
 
+    except Exception as exc:
+        return {
+            "ticker": ticker,
+            "timeframe": timeframe,
+            "signal": None,
+            "candle": None,
+            "error": str(exc),
+        }
+
+
+def _signal_key(result):
+    """
+    Unique identity for an alert.
+
+    A new alert is generated when a new candle,
+    direction or score appears.
+    """
+
+    signal = result["signal"]
+
+    if signal is None:
         return None
 
+    return "|".join(
+        [
+            str(result["ticker"]),
+            str(result["timeframe"]),
+            str(result["candle"]),
+            str(signal.direction),
+            str(signal.score),
+        ]
+    )
 
-def scan_all_markets():
+
+def scan_all_markets(
+    only_new=True,
+):
     """
     Scan the complete configured universe.
 
-    Returns a list of qualifying signals.
+    When only_new=True, previously alerted setups
+    are not returned again.
     """
 
-    signals = []
+    state = _load_state()
+    results = []
 
     timeframes = list(
         cfg.INTRADAY_TIMEFRAMES
@@ -68,175 +157,82 @@ def scan_all_markets():
 
         for timeframe in timeframes:
 
-            signal = scan_market(
+            result = scan_market(
                 ticker=ticker,
                 timeframe=timeframe,
             )
 
-            if signal is not None:
-                signals.append(
-                    signal
+            if result["error"]:
+
+                print(
+                    f"{ticker} "
+                    f"{timeframe}: "
+                    f"ERROR — "
+                    f"{result['error']}"
                 )
 
-    # Strongest signals first.
-    signals.sort(
-        key=lambda item: (
-            item.score,
-            item.ticker,
-            item.timeframe,
+                continue
+
+            signal = result["signal"]
+
+            if signal is None:
+                continue
+
+            key = _signal_key(
+                result
+            )
+
+            if only_new and key in state:
+                continue
+
+            results.append(
+                signal
+            )
+
+            state[key] = {
+                "sent_at": datetime.now(
+                    timezone.utc
+                ).isoformat(),
+                "ticker": ticker,
+                "timeframe": timeframe,
+                "candle": result["candle"],
+                "direction": signal.direction,
+                "score": signal.score,
+            }
+
+    _save_state(state)
+
+    results.sort(
+        key=lambda signal: (
+            signal.score,
+            signal.direction == "BUY",
         ),
         reverse=True,
     )
-
-    return signals
-
-
-def scan_historical(
-    ticker,
-    timeframe,
-    lookback=10,
-):
-    """
-    Inspect previous completed candles.
-
-    This is useful for finding setups that occurred
-    recently rather than looking only at the latest candle.
-
-    Returns:
-        List of historical signals.
-    """
-
-    period = _period_for_timeframe(
-        timeframe
-    )
-
-    try:
-        df = get_ohlcv(
-            ticker=ticker,
-            period=period,
-            interval=timeframe,
-        )
-    except Exception as exc:
-        print(
-            f"ERROR | historical | "
-            f"{ticker} | {exc}"
-        )
-        return []
-
-    if len(df) < 2:
-        return []
-
-    results = []
-
-    # Work backwards through completed candles.
-    start = max(
-        1,
-        len(df) - int(lookback),
-    )
-
-    for index in range(
-        start,
-        len(df),
-    ):
-
-        historical_df = df.iloc[
-            :index + 1
-        ]
-
-        signal = generate_signal(
-            ticker=ticker,
-            timeframe=timeframe,
-            df=historical_df,
-            cfg=cfg,
-        )
-
-        if signal is not None:
-
-            candle_time = (
-                historical_df.index[-1]
-            )
-
-            results.append(
-                {
-                    "timestamp": str(
-                        candle_time
-                    ),
-                    "signal": signal,
-                }
-            )
-
-    return results
-
-
-def scan_recent_history(
-    lookback=5,
-):
-    """
-    Scan recent historical candles for the
-    complete configured universe.
-
-    This does not place orders.
-    """
-
-    results = []
-
-    timeframes = list(
-        cfg.INTRADAY_TIMEFRAMES
-    )
-
-    if cfg.SWING_TIMEFRAME not in timeframes:
-        timeframes.append(
-            cfg.SWING_TIMEFRAME
-        )
-
-    for ticker in cfg.WATCHLIST:
-
-        for timeframe in timeframes:
-
-            history = scan_historical(
-                ticker=ticker,
-                timeframe=timeframe,
-                lookback=lookback,
-            )
-
-            for item in history:
-
-                results.append(
-                    {
-                        "ticker": ticker,
-                        "timeframe": timeframe,
-                        "timestamp": item[
-                            "timestamp"
-                        ],
-                        "signal": item[
-                            "signal"
-                        ],
-                    }
-                )
 
     return results
 
 
 def print_market_report(
-    signals,
+    results,
 ):
-    """Print a readable scan report."""
+    """Print a readable report."""
 
     print("")
     print("=" * 70)
     print("SHtrading MARKET SCAN")
     print("=" * 70)
 
-    if not signals:
+    if not results:
         print("")
         print(
-            "No qualifying setups found."
+            "No NEW qualifying setups found."
         )
         print("")
         return
 
     for number, signal in enumerate(
-        signals,
+        results,
         start=1,
     ):
 
@@ -248,7 +244,7 @@ def print_market_report(
         )
 
         print(
-            f"   Direction: "
+            f"   Signal: "
             f"{signal.direction}"
         )
 
@@ -279,11 +275,14 @@ def print_market_report(
             )
 
     print("")
+    print("=" * 70)
 
 
 if __name__ == "__main__":
 
-    signals = scan_all_markets()
+    signals = scan_all_markets(
+        only_new=False
+    )
 
     print_market_report(
         signals

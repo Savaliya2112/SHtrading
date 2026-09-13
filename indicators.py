@@ -1,53 +1,132 @@
 from __future__ import annotations
-import numpy as np
+
 import pandas as pd
 
+
 def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add technical indicators used by the strategy.
+
+    Required input columns:
+    Open, High, Low, Close, Volume
+    """
+
     if df is None or df.empty:
         return pd.DataFrame()
-    x = df.copy()
-    if isinstance(x.columns, pd.MultiIndex):
-        x.columns = x.columns.get_level_values(0)
-    close, high, low, volume = x["Close"], x["High"], x["Low"], x["Volume"]
-    x["SMA20"] = close.rolling(20).mean()
-    x["SMA50"] = close.rolling(50).mean()
-    x["EMA20"] = close.ewm(span=20, adjust=False).mean()
-    x["EMA50"] = close.ewm(span=50, adjust=False).mean()
 
-    delta = close.diff()
-    gain = delta.clip(lower=0).rolling(14).mean()
-    loss = (-delta.clip(upper=0)).rolling(14).mean()
-    rs = gain / loss.replace(0, np.nan)
-    x["RSI14"] = 100 - (100 / (1 + rs))
-    x.loc[(loss == 0) & gain.notna(), "RSI14"] = 100.0
+    data = df.copy()
 
-    prev = close.shift(1)
-    tr = pd.concat([(high-low), (high-prev).abs(), (low-prev).abs()], axis=1).max(axis=1)
-    x["ATR14"] = tr.rolling(14).mean()
+    required = ["Open", "High", "Low", "Close", "Volume"]
 
-    e12 = close.ewm(span=12, adjust=False).mean()
-    e26 = close.ewm(span=26, adjust=False).mean()
-    x["MACD"] = e12-e26
-    x["MACD_SIGNAL"] = x["MACD"].ewm(span=9, adjust=False).mean()
-    x["MACD_HIST"] = x["MACD"]-x["MACD_SIGNAL"]
+    missing = [
+        column for column in required
+        if column not in data.columns
+    ]
 
-    x["VOL20"] = volume.rolling(20).mean()
-    x["VOL_RATIO"] = volume/x["VOL20"]
-    x["RET20"] = close.pct_change(20)
-    x["HIGH20"] = high.rolling(20).max()
-    x["LOW20"] = low.rolling(20).min()
+    if missing:
+        raise ValueError(
+            f"Missing required columns: {missing}"
+        )
 
-    for a,b in {
-        "sma_fast":"SMA20","sma_slow":"SMA50","ema_fast":"EMA20","ema_slow":"EMA50",
-        "rsi":"RSI14","macd":"MACD","macd_signal":"MACD_SIGNAL",
-        "macd_hist":"MACD_HIST","atr":"ATR14","vol_ratio":"VOL_RATIO"
-    }.items():
-        x[a]=x[b]
-    x["bb_mid"]=close.rolling(20).mean()
-    std=close.rolling(20).std(ddof=0)
-    x["bb_upper"]=x["bb_mid"]+2*std
-    x["bb_lower"]=x["bb_mid"]-2*std
-    return x.dropna().copy()
+    # --------------------------------------------------------
+    # Simple Moving Averages
+    # --------------------------------------------------------
 
-def compute_all_indicators(df: pd.DataFrame, config=None) -> pd.DataFrame:
-    return add_indicators(df)
+    data["SMA20"] = (
+        data["Close"]
+        .rolling(20)
+        .mean()
+    )
+
+    data["SMA50"] = (
+        data["Close"]
+        .rolling(50)
+        .mean()
+    )
+
+    # --------------------------------------------------------
+    # RSI - 14
+    # --------------------------------------------------------
+
+    delta = data["Close"].diff()
+
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+
+    average_gain = gain.rolling(14).mean()
+    average_loss = loss.rolling(14).mean()
+
+    rs = average_gain / average_loss.replace(
+        0,
+        float("nan"),
+    )
+
+    data["RSI"] = 100 - (
+        100 / (1 + rs)
+    )
+
+    # --------------------------------------------------------
+    # MACD
+    # --------------------------------------------------------
+
+    ema12 = (
+        data["Close"]
+        .ewm(
+            span=12,
+            adjust=False,
+        )
+        .mean()
+    )
+
+    ema26 = (
+        data["Close"]
+        .ewm(
+            span=26,
+            adjust=False,
+        )
+        .mean()
+    )
+
+    data["MACD"] = ema12 - ema26
+
+    data["MACD_SIGNAL"] = (
+        data["MACD"]
+        .ewm(
+            span=9,
+            adjust=False,
+        )
+        .mean()
+    )
+
+    # --------------------------------------------------------
+    # ATR - 14
+    # --------------------------------------------------------
+
+    previous_close = data["Close"].shift(1)
+
+    true_range = pd.concat(
+        [
+            data["High"] - data["Low"],
+            (data["High"] - previous_close).abs(),
+            (data["Low"] - previous_close).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
+
+    data["ATR"] = (
+        true_range
+        .rolling(14)
+        .mean()
+    )
+
+    # --------------------------------------------------------
+    # Average volume
+    # --------------------------------------------------------
+
+    data["Volume_SMA20"] = (
+        data["Volume"]
+        .rolling(20)
+        .mean()
+    )
+
+    return data

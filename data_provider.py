@@ -2,18 +2,47 @@ import pandas as pd
 import yfinance as yf
 
 
+REQUIRED_COLUMNS = [
+    "Open",
+    "High",
+    "Low",
+    "Close",
+    "Volume",
+]
+
+
+def _flatten_columns(df):
+    """Normalize yfinance MultiIndex columns."""
+
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [
+            column[0]
+            if isinstance(column, tuple)
+            else column
+            for column in df.columns
+        ]
+
+    return df
+
+
 def get_ohlcv(
     ticker,
-    period="6mo",
+    period="1y",
     interval="1d",
 ):
     """
-    Download OHLCV market data from Yahoo Finance.
+    Download OHLCV data from Yahoo Finance.
 
-    Returns:
-        pandas.DataFrame with:
-        Open, High, Low, Close, Volume
+    Returns a clean DataFrame containing:
+    Open, High, Low, Close and Volume.
     """
+
+    ticker = str(ticker).strip()
+
+    if not ticker:
+        raise ValueError(
+            "Ticker cannot be empty."
+        )
 
     df = yf.download(
         ticker,
@@ -26,106 +55,54 @@ def get_ohlcv(
 
     if df is None or df.empty:
         raise ValueError(
-            f"No market data returned for {ticker}"
+            f"No market data returned for {ticker}."
         )
 
-    # --------------------------------------------------------
-    # yfinance may return MultiIndex columns.
-    # Normalize them to simple column names.
-    # --------------------------------------------------------
+    df = _flatten_columns(df)
 
-    if isinstance(
-        df.columns,
-        pd.MultiIndex
-    ):
-        df.columns = (
-            df.columns
-            .get_level_values(0)
-        )
-
-    # --------------------------------------------------------
-    # Required columns
-    # --------------------------------------------------------
-
-    required_columns = [
-        "Open",
-        "High",
-        "Low",
-        "Close",
-        "Volume",
-    ]
-
-    missing_columns = [
+    missing = [
         column
-        for column in required_columns
+        for column in REQUIRED_COLUMNS
         if column not in df.columns
     ]
 
-    if missing_columns:
+    if missing:
         raise ValueError(
-            f"{ticker}: missing columns "
-            f"{missing_columns}"
+            f"{ticker}: missing required columns: "
+            f"{missing}"
         )
 
-    # --------------------------------------------------------
-    # Keep only required market data
-    # --------------------------------------------------------
-
-    result = df[
-        required_columns
+    df = df[
+        REQUIRED_COLUMNS
     ].copy()
 
-    # --------------------------------------------------------
-    # Convert everything to numeric
-    # --------------------------------------------------------
-
-    for column in required_columns:
-        result[column] = pd.to_numeric(
-            result[column],
+    for column in REQUIRED_COLUMNS:
+        df[column] = pd.to_numeric(
+            df[column],
             errors="coerce",
         )
 
-    # Remove invalid rows
-    result = result.dropna()
+    df = df.replace(
+        [float("inf"), float("-inf")],
+        pd.NA,
+    )
 
-    # --------------------------------------------------------
-    # Strategy requires enough historical data
-    # --------------------------------------------------------
+    df = df.dropna(
+        subset=REQUIRED_COLUMNS
+    )
 
-    if len(result) < 60:
+    if df.empty:
         raise ValueError(
-            f"{ticker}: insufficient OHLCV "
-            f"rows ({len(result)})."
+            f"{ticker}: no valid OHLCV rows."
         )
 
-    return result
+    # Remove duplicate timestamps.
+    df = df[
+        ~df.index.duplicated(
+            keep="last"
+        )
+    ]
 
+    df = df.sort_index()
 
-def get_daily_data(
-    ticker,
-    period="1y",
-):
-    """
-    Convenience function for daily data.
-    """
-
-    return get_ohlcv(
-        ticker=ticker,
-        period=period,
-        interval="1d",
-    )
-
-
-def get_hourly_data(
-    ticker,
-    period="60d",
-):
-    """
-    Convenience function for hourly data.
-    """
-
-    return get_ohlcv(
-        ticker=ticker,
-        period=period,
-        interval="1h",
-    )
+    return

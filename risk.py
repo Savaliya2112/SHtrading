@@ -10,17 +10,11 @@ from dataclasses import dataclass
 
 @dataclass
 class RiskPlan:
-
     quantity: int
-
     risk_eur: float
-
     notional_eur: float
-
     risk_per_share: float
-
     entry_price: float
-
     stop_price: float
 
 
@@ -32,52 +26,61 @@ def build_risk_plan(
     max_notional_pct=25.0,
 ):
     """
-    Calculate position size based on:
+    Calculate a safe position size using:
 
     1. Maximum account risk.
     2. Maximum position notional.
 
     Example:
-
-    Account = €3,000
-    Risk = 1%
-    Maximum risk = €30
+        Account = €3,000
+        Risk = 1%
+        Maximum risk = €30
     """
 
+    # Basic validation
     if entry <= 0:
-        return RiskPlan(
-            0, 0, 0, 0, entry, stop
-        )
+        return RiskPlan(0, 0, 0, 0, entry, stop)
 
+    if account_eur <= 0:
+        return RiskPlan(0, 0, 0, 0, entry, stop)
+
+    if risk_pct <= 0:
+        return RiskPlan(0, 0, 0, 0, entry, stop)
+
+    if max_notional_pct <= 0:
+        return RiskPlan(0, 0, 0, 0, entry, stop)
+
+    # Stop must be different from entry
     risk_per_share = abs(entry - stop)
 
     if risk_per_share <= 0:
-        return RiskPlan(
-            0, 0, 0, 0, entry, stop
-        )
+        return RiskPlan(0, 0, 0, 0, entry, stop)
 
+    # Maximum money we are allowed to lose
     risk_budget = (
-        account_eur *
-        risk_pct /
-        100
+        account_eur
+        * risk_pct
+        / 100
     )
 
+    # Maximum position value
     max_notional = (
-        account_eur *
-        max_notional_pct /
-        100
+        account_eur
+        * max_notional_pct
+        / 100
     )
 
+    # Position size based on risk
     quantity_by_risk = int(
-        risk_budget /
-        risk_per_share
+        risk_budget / risk_per_share
     )
 
+    # Position size based on maximum exposure
     quantity_by_notional = int(
-        max_notional /
-        entry
+        max_notional / entry
     )
 
+    # Use the smaller limit
     quantity = min(
         quantity_by_risk,
         quantity_by_notional,
@@ -86,13 +89,13 @@ def build_risk_plan(
     quantity = max(quantity, 0)
 
     risk_eur = (
-        quantity *
-        risk_per_share
+        quantity
+        * risk_per_share
     )
 
     notional_eur = (
-        quantity *
-        entry
+        quantity
+        * entry
     )
 
     return RiskPlan(
@@ -101,8 +104,14 @@ def build_risk_plan(
         notional_eur=round(notional_eur, 2),
         risk_per_share=round(
             risk_per_share,
-            4
+            4,
         ),
-        entry_price=round(entry, 4),
-        stop_price=round(stop, 4),
+        entry_price=round(
+            entry,
+            4,
+        ),
+        stop_price=round(
+            stop,
+            4,
+        ),
     )

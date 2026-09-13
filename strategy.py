@@ -1,8 +1,12 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import List, Optional
+
 import pandas as pd
 
-@dataclass(frozen=True)
+
+@dataclass
 class Signal:
     symbol: str
     action: str
@@ -11,20 +15,86 @@ class Signal:
     price: float
     stop: float
     target: float
-    reasons: tuple[str,...]
+    reasons: List[str]
 
-def generate_signal(symbol: str, df: pd.DataFrame, min_score: float=3):
-    if df is None or len(df)<2: return None
-    r=df.iloc[-1]
-    price=float(r["Close"]); atr=float(r["ATR14"])
-    score=0; reasons=[]
-    if price>float(r["SMA20"])>float(r["SMA50"]): score+=1; reasons.append("price above SMA20/SMA50")
-    if float(r["EMA20"])>float(r["EMA50"]): score+=1; reasons.append("EMA trend positive")
-    if 52<=float(r["RSI14"])<=70: score+=1; reasons.append("RSI momentum healthy")
-    if float(r["MACD_HIST"])>0: score+=1; reasons.append("MACD positive")
-    if float(r["VOL_RATIO"])>=1.2: score+=1; reasons.append("volume above average")
-    if score<min_score: return None
-    stop=price-max(1.5*atr,price*.015)
-    target=price+max(3*atr,price*.03)
-    confidence=min(99,50+score*9)
-    return Signal(symbol,"BUY",float(score),confidence,price,stop,target,tuple(reasons))
+
+def _value(row, name: str, default=None):
+    value = row.get(name, default)
+
+    if pd.isna(value):
+        return default
+
+    return float(value)
+
+
+def generate_signal(
+    symbol: str,
+    data: pd.DataFrame,
+    min_score: float = 3,
+) -> Optional[Signal]:
+    """
+    Generate an analysis signal from the latest candle.
+
+    This function ONLY analyses market data.
+    It does not place orders.
+    """
+
+    if data is None or data.empty:
+        return None
+
+    row = data.iloc[-1]
+
+    price = _value(row, "Close")
+
+    if price is None or price <= 0:
+        return None
+
+    score = 0.0
+    reasons: list[str] = []
+
+    # --------------------------------------------------------
+    # Trend
+    # --------------------------------------------------------
+
+    sma20 = _value(row, "SMA20")
+    sma50 = _value(row, "SMA50")
+
+    if sma20 is not None and price > sma20:
+        score += 1
+        reasons.append("price above SMA20")
+
+    if (
+        sma20 is not None
+        and sma50 is not None
+        and sma20 > sma50
+    ):
+        score += 1
+        reasons.append("SMA20 above SMA50")
+
+    # --------------------------------------------------------
+    # RSI
+    # --------------------------------------------------------
+
+    rsi = _value(row, "RSI")
+
+    if rsi is not None:
+        if 50 <= rsi <= 70:
+            score += 1
+            reasons.append("RSI bullish")
+
+        elif rsi < 30:
+            score += 0.5
+            reasons.append("RSI oversold")
+
+    # --------------------------------------------------------
+    # MACD
+    # --------------------------------------------------------
+
+    macd = _value(row, "MACD")
+    macd_signal = _value(
+        row,
+        "MACD_SIGNAL",
+    )
+
+    if (
+        macd is

@@ -1,6 +1,14 @@
 import os
 
 # ============================================================
+# TELEGRAM
+# ============================================================
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
+
+# ============================================================
 # ACCOUNT / RISK
 # ============================================================
 
@@ -33,15 +41,8 @@ MAX_DAILY_LOSS_PCT = float(
 # MARKET DATA
 # ============================================================
 
-DAILY_PERIOD = os.getenv(
-    "DAILY_PERIOD",
-    "1y"
-)
-
-INTRADAY_PERIOD = os.getenv(
-    "INTRADAY_PERIOD",
-    "60d"
-)
+DAILY_PERIOD = os.getenv("DAILY_PERIOD", "1y")
+INTRADAY_PERIOD = os.getenv("INTRADAY_PERIOD", "60d")
 
 
 # ============================================================
@@ -60,7 +61,6 @@ SWING_TIMEFRAME = "1d"
 # ============================================================
 
 WATCHLIST = [
-    # United States
     "NVDA",
     "AAPL",
     "MSFT",
@@ -69,17 +69,14 @@ WATCHLIST = [
     "GOOGL",
     "TSLA",
 
-    # Major US indices / ETFs
     "SPY",
     "QQQ",
 
-    # Germany / Europe
     "SAP.DE",
     "SIE.DE",
     "ALV.DE",
     "DAX",
 
-    # Japan
     "^N225",
 ]
 
@@ -88,49 +85,22 @@ WATCHLIST = [
 # TECHNICAL INDICATORS
 # ============================================================
 
-SMA_FAST = int(
-    os.getenv("SMA_FAST", "20")
-)
+SMA_FAST = int(os.getenv("SMA_FAST", "20"))
+SMA_SLOW = int(os.getenv("SMA_SLOW", "50"))
 
-SMA_SLOW = int(
-    os.getenv("SMA_SLOW", "50")
-)
+EMA_FAST = int(os.getenv("EMA_FAST", "12"))
+EMA_SLOW = int(os.getenv("EMA_SLOW", "26"))
 
-EMA_FAST = int(
-    os.getenv("EMA_FAST", "12")
-)
+RSI_PERIOD = int(os.getenv("RSI_PERIOD", "14"))
 
-EMA_SLOW = int(
-    os.getenv("EMA_SLOW", "26")
-)
+MACD_FAST = int(os.getenv("MACD_FAST", "12"))
+MACD_SLOW = int(os.getenv("MACD_SLOW", "26"))
+MACD_SIGNAL = int(os.getenv("MACD_SIGNAL", "9"))
 
-RSI_PERIOD = int(
-    os.getenv("RSI_PERIOD", "14")
-)
+BB_PERIOD = int(os.getenv("BB_PERIOD", "20"))
+BB_STD = float(os.getenv("BB_STD", "2"))
 
-MACD_FAST = int(
-    os.getenv("MACD_FAST", "12")
-)
-
-MACD_SLOW = int(
-    os.getenv("MACD_SLOW", "26")
-)
-
-MACD_SIGNAL = int(
-    os.getenv("MACD_SIGNAL", "9")
-)
-
-BB_PERIOD = int(
-    os.getenv("BB_PERIOD", "20")
-)
-
-BB_STD = float(
-    os.getenv("BB_STD", "2")
-)
-
-ATR_PERIOD = int(
-    os.getenv("ATR_PERIOD", "14")
-)
+ATR_PERIOD = int(os.getenv("ATR_PERIOD", "14"))
 
 VOLUME_LOOKBACK = int(
     os.getenv("VOLUME_LOOKBACK", "20")
@@ -160,3 +130,28 @@ MIN_STOP_PCT = float(
 REWARD_RISK_RATIO = float(
     os.getenv("REWARD_RISK_RATIO", "2.0")
 )
+
+
+# ============================================================
+# ALERTS / NEWS
+# ============================================================
+
+MAX_ALERTS = int(
+    os.getenv("MAX_ALERTS", "10")
+)
+
+NEWS_RESULTS = int(
+    os.getenv("NEWS_RESULTS", "5")
+)
+
+NEWS_PER_TICKER = int(
+    os.getenv("NEWS_PER_TICKER", "2")
+)
+
+
+# ============================================================
+# BACKTESTING
+# ============================================================
+
+TRANSACTION_COST_PCT = float(
+    os.getenv

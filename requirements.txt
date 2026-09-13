@@ -1,5 +1,5 @@
-pandas>=2.0,<3
-numpy>=1.24,<3
-yfinance>=0.2.40
+pandas>=2.2,<3
+numpy>=1.26,<3
+yfinance>=0.2.40,<2
+lxml>=5.0,<7
 pytest>=8,<9
-lxml>=5
